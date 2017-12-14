@@ -20,7 +20,7 @@ def csv2npdata(filename):
 
 def clutter_data_extraction():
     data, data_num, data_samplenum = csv2npdata("./20171211/clutter/test20171211002.csv")
-    
+
     x_range= []
     for i in range(data_samplenum):
         x_range.append(i * DELTA_R)
@@ -33,15 +33,27 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
     filename, ext = os.path.splitext( os.path.basename(filepath) )
     data, data_num, data_samplenum = csv2npdata(filepath)
 
-    sub_data = data - clutter_data
-    abs_data = np.absolute(sub_data)
-
+    """元データスペクトログラム表示"""
+    abs_data = np.absolute(data)
+    plt.figure()
     plt.imshow(abs_data.T, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
     plt.title("{}".format(filename + ext))
     plt.xlabel("times[s]")
     plt.ylabel("distance[m]")
     plt.colorbar()
     plt.savefig("./result/spec_{}.png".format(filename) )
+    plt.show()
+
+    """clutter削除"""
+    sub_data = data - clutter_data
+    sub_abs_data = np.absolute(sub_data)
+    plt.figure()
+    plt.imshow(sub_abs_data.T, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+    plt.title("del_clutter{}".format(filename + ext))
+    plt.xlabel("times[s]")
+    plt.ylabel("distance[m]")
+    plt.colorbar()
+    plt.savefig("./result/del_clutter_spec_{}.png".format(filename) )
     plt.show()
 
 def main():
