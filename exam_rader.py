@@ -29,6 +29,16 @@ def clutter_data_extraction():
 
     return x_range, clutter_data
 
+def del_clutter_filter(data, x, y):
+    result = data[y, x]
+    f_size = 20
+    for i in range(1, int(f_size / 2) ):
+        result -= data[y, x - i] / f_size
+    for i in range(1, int(f_size / 2) ):
+        result -= data[y, x + i] / f_size
+    
+    return result
+    
 def rader_spectrogram(filepath, dis_range, clutter_data):
     filename, ext = os.path.splitext( os.path.basename(filepath) )
     data, data_num, data_samplenum = csv2npdata(filepath)
@@ -45,7 +55,7 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
     plt.show()
 
     """clutter削除"""
-    sub_data = data - clutter_data
+    sub_data = data - clutter_data #クラッターデータ減算
     sub_abs_data = np.absolute(sub_data)
     plt.figure()
     plt.imshow(sub_abs_data.T, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
@@ -55,13 +65,30 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
     plt.colorbar()
     plt.savefig("./result/del_clutter_spec_{}.png".format(filename) )
     plt.show()
-
+    
+    """フィルタ処理"""
+    trans_data = sub_abs_data.T
+    filtered_data = np.zeros(trans_data.shape)
+    print(filtered_data.shape)
+    for y in range(data_samplenum):
+        for x in range(10, data_num - 10):
+            filtered_data[y, x] = del_clutter_filter(trans_data, x, y )
+    filtered_data = np.absolute(filtered_data)
+    plt.figure()
+    plt.imshow(filtered_data, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+    plt.title("del_clutter{}".format(filename + ext))
+    plt.xlabel("times[s]")
+    plt.ylabel("distance[m]")
+    plt.colorbar()
+    plt.savefig("./result/filtered_spec_{}.png".format(filename) )
+    plt.show()
+    
 def main():
     print("delta_r[m] : {}\ndelta_t[s] : {}\ninitial_distance[m] : {}".format(DELTA_R, DELTA_T, INIT_DIS) )
 
     dis_range, clutter_data = clutter_data_extraction()
 
-    file_list = glob.glob("./20171211/*.csv")
+    file_list = glob.glob("./20171211/test20171211003.csv")
     for filepath in file_list:
         rader_spectrogram(filepath, dis_range, clutter_data)
 
