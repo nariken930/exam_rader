@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import sympy as sym
 import glob
 import os
 
 DELTA_R = (0.001907 * 32 * 10**-9 * 299792458) / 2 #距離間隔
 DELTA_T = 40 * 10**-3 #時間間隔
 INIT_DIS = 1.5 #測定初期距離
+
+USE_FILTER = True
+USE_DIFF = False
 
 def csv2npdata(filename):
     df = pd.read_csv(filename, header = None, skiprows = 3)
@@ -29,9 +33,8 @@ def clutter_data_extraction():
 
     return x_range, clutter_data
 
-def del_clutter_filter(data, x, y):
+def del_clutter_filter(data, x, y, f_size):
     result = data[y, x]
-    f_size = 20
     for i in range(1, int(f_size / 2) ):
         result -= data[y, x - i] / f_size
     for i in range(1, int(f_size / 2) ):
@@ -66,28 +69,44 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
     plt.savefig("./result/del_clutter_spec_{}.png".format(filename) )
     plt.show()
     
-    """フィルタ処理"""
-    trans_data = sub_abs_data.T
-    filtered_data = np.zeros(trans_data.shape)
-    print(filtered_data.shape)
-    for y in range(data_samplenum):
-        for x in range(10, data_num - 10):
-            filtered_data[y, x] = del_clutter_filter(trans_data, x, y )
-    filtered_data = np.absolute(filtered_data)
-    plt.figure()
-    plt.imshow(filtered_data, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
-    plt.title("del_clutter{}".format(filename + ext))
-    plt.xlabel("times[s]")
-    plt.ylabel("distance[m]")
-    plt.colorbar()
-    plt.savefig("./result/filtered_spec_{}.png".format(filename) )
-    plt.show()
+    if(USE_FILTER):
+        """フィルタ処理"""
+        filter_size = 4
+        trans_data = sub_abs_data.T
+        filtered_data = np.zeros(trans_data.shape)
+        print(filtered_data.shape)
+        for y in range(data_samplenum):
+            for x in range(filter_size, data_num - filter_size):
+                filtered_data[y, x] = del_clutter_filter(trans_data, x, y ,filter_size)
+        filtered_data = np.absolute(filtered_data)
+        plt.figure()
+        plt.imshow(filtered_data, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+        plt.title("del_clutter{}".format(filename + ext))
+        plt.xlabel("times[s]")
+        plt.ylabel("distance[m]")
+        plt.colorbar()
+        plt.savefig("./result/filtered_spec_{}.png".format(filename) )
+        plt.show()
+    
+    if(USE_DIFF):
+        """微分処理"""
+        delta_data = np.diff(sub_data,n = 2, axis = 0)
+        delta_data = np.absolute(delta_data)
+        plt.figure()
+        plt.imshow(delta_data.T, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+        plt.title("del_clutter{}".format(filename + ext) )
+        plt.xlabel("times[s]")
+        plt.ylabel("distance[m]")
+        plt.colorbar()
+        plt.savefig("./result/diff_spec_{}.png".format(filename) )
+        plt.show()
     
 def main():
     print("delta_r[m] : {}\ndelta_t[s] : {}\ninitial_distance[m] : {}".format(DELTA_R, DELTA_T, INIT_DIS) )
 
     dis_range, clutter_data = clutter_data_extraction()
 
+#    file_list = glob.glob("./20171211/*.csv")
     file_list = glob.glob("./20171211/test20171211003.csv")
     for filepath in file_list:
         rader_spectrogram(filepath, dis_range, clutter_data)
