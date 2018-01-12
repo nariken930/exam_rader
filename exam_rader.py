@@ -49,10 +49,25 @@ def function_plot(data, y, x, N):
     else:
         return 0
     
+def kansu_plot(data, x, size, samplenum):
+    ext_data = data[:, int(x - size/2):int(x + size/2) ]
+    sum_list = []
+    for y in range(int(size/2), samplenum - int(size/2) ):
+        sum_list.append(np.sum(ext_data[int(y - size/2) : int(y + size/2), : ] ) )
+    return sum_list.index(max(sum_list) )
+
+def noise_reduction(plot_data, y, x):
+    batch_size = 10
+    sum_data = sum(plot_data[y - int(batch_size/2) : y + int(batch_size/2) ,x - int(batch_size/2) : x + int(batch_size/2) ] )
+    if(sum_data < 5):
+        return 0
+    else:
+        return 1
+
 def rader_spectrogram(filepath, dis_range, clutter_data):
     filename, ext = os.path.splitext( os.path.basename(filepath) )
     data, data_num, data_samplenum = csv2npdata(filepath)
-
+    
     """元データスペクトログラム表示"""
     abs_data = np.absolute(data)
     plt.figure()
@@ -105,10 +120,58 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
         plt.title("plot_{}".format(filename + ext) )
         plt.xlabel("times[s]")
         plt.ylabel("distance[m]")
-#        plt.colorbar()
-        plt.savefig("./result/filtered_spec_{}.png".format(filename) )
+        plt.savefig("./result/binary_spec_{}.png".format(filename) )
         plt.show()
-    
+        
+        squ_size = 6
+        kansu_data = np.zeros(filtered_data.shape)
+        kansu_x = []
+        kansu_y = []
+        for x in range(int(squ_size/2), data_num - int(squ_size/2) ):
+            plot_index = kansu_plot(plot_data, x, squ_size, data_samplenum)
+            kansu_data[plot_index, x] = 1
+            kansu_x.append(x)
+            kansu_y.append(plot_index)
+            kansu_data[plot_index, x] = 1
+        noise_red_plot_data = np.zeros(filtered_data.shape)
+        for y in range(data_samplenum):
+            for x in range(data_num):
+                if(kansu_data[y, x] == 1):
+                    noise_red_plot_data[y, x] = noise_reduction(kansu_data, y ,x)
+#            kansu_x.append(x)
+#            kansu_y.append(plot_index)
+#            kansu_data[plot_index, x] = 1
+#        kansu_x = kansu_x[N : data_num - N ]
+#        kansu_y = kansu_y[N : data_num - N ]
+#        np_x = np.array(kansu_x )
+#        np_y = np.array(kansu_y )
+        plt.figure()
+        plt.imshow(noise_red_plot_data, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+#        plt.scatter(np_x, np_y, s = 1)
+#        plt.plot(np_x, np.poly1d(np.polyfit(np_x, np_y, 20))(np_x) )
+        plt.title("plot_{}".format(filename + ext) )
+#        plt.xlim([0, data_num] )
+#        plt.ylim([0, data_samplenum] )
+#        ax = plt.gca()
+#        ax.invert_yaxis()
+        plt.xlabel("times[s]")
+        plt.ylabel("distance[m]")
+        plt.savefig("./result/square_kansu_spec_{}.png".format(filename) )
+        plt.show()
+        
+        kansu_data = np.zeros(trans_data.shape)
+        for x in range(data_num):
+            in_max = 0
+            in_max = np.argmax(filtered_data[:, x] )
+            kansu_data[in_max, x] = 1
+        plt.figure()
+        plt.imshow(kansu_data, extent=[0, data_num * DELTA_T, 0, data_samplenum * DELTA_R], aspect="auto")
+        plt.title("del_clutter{}".format(filename + ext) )
+        plt.xlabel("times[s]")
+        plt.ylabel("distance[m]")
+        plt.savefig("./result/max_kansu_spec_{}.png".format(filename) )
+        plt.show()
+        
     if(USE_DIFF):
         """微分処理"""
         delta_data = np.diff(sub_data,n = 2, axis = 0)
@@ -119,14 +182,13 @@ def rader_spectrogram(filepath, dis_range, clutter_data):
         plt.xlabel("times[s]")
         plt.ylabel("distance[m]")
         plt.colorbar()
-        plt.savefig("./result/diff_spec_{}.png".format(filename) )
+        plt.savefig("./result/diff_spec_{}.png".format(filename ) )
         plt.show()
     
 def main():
     print("delta_r[m] : {}\ndelta_t[s] : {}\ninitial_distance[m] : {}".format(DELTA_R, DELTA_T, INIT_DIS) )
-
     dis_range, clutter_data = clutter_data_extraction()
-
+    
 #    file_list = glob.glob("./20171211/*.csv")
 #    file_list = glob.glob("./20171211/test20171211011.csv")
     file_list = glob.glob("./one_human/*.csv")
